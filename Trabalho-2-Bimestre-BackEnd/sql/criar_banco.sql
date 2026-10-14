@@ -1,0 +1,1 @@
+CREATE DATABASE trabalho2bi;
