@@ -1,18 +1,21 @@
 package br.unipar.backend.trabalho1bi.controler;
 
 import br.unipar.backend.trabalho1bi.model.Veiculo;
+import br.unipar.backend.trabalho1bi.repository.VeiculoRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 @RestController
 @RequestMapping("/veiculo")
 public class VeiculoControler {
 
-    List<Veiculo> bancoDados = new ArrayList<>();
+    private final VeiculoRepository veiculoRepository;
+
+    public VeiculoControler(VeiculoRepository veiculoRepository) {
+        this.veiculoRepository = veiculoRepository;
+    }
 
     @GetMapping("/{veiculo}")
     public String veiculo(@PathVariable String veiculo) {
@@ -21,22 +24,7 @@ public class VeiculoControler {
     @GetMapping("/pesquisa")
     public ResponseEntity<List<Veiculo>> pesquisa(@RequestParam(required = false) String modelo,@RequestParam(required = false) String marca,@RequestParam(required = false) Integer ano){
 
-        List<Veiculo> veiculosEncontrados = new ArrayList<>();
-
-        for (Veiculo veiculo : bancoDados) {
-
-            boolean corresponde = true;
-            if (modelo != null && !veiculo.getModelo().equalsIgnoreCase(modelo))
-            { corresponde = false;}
-
-            if (marca != null && !veiculo.getMarca().equalsIgnoreCase(marca))
-            { corresponde = false;}
-
-            if (ano != null && !veiculo.getAno().equals(ano))
-            { corresponde = false; }
-
-            if (corresponde) { veiculosEncontrados.add(veiculo); }
-        }
+        List<Veiculo> veiculosEncontrados = veiculoRepository.pesquisa(modelo, marca, ano);
         if (veiculosEncontrados.isEmpty())
         { return ResponseEntity.notFound().build(); }
         return ResponseEntity.ok(veiculosEncontrados);
@@ -44,33 +32,26 @@ public class VeiculoControler {
     @GetMapping("/listar-todos")
     public ResponseEntity<List<Veiculo>> listarTodos() {
 
-        return ResponseEntity.ok(bancoDados);
+        return ResponseEntity.ok(veiculoRepository.findAll());
     }
     @GetMapping("/listar/{id}")
     public ResponseEntity<Veiculo> listarID(@PathVariable Integer id) {
 
-        for (Veiculo veiculo : bancoDados) {
+        Veiculo veiculo = veiculoRepository.findById(id).orElse(null);
 
-            if (veiculo.getId() == id) {
-                return ResponseEntity.ok(veiculo);
-            }
+        if (veiculo == null) {
+            return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(veiculo);
     }
     @GetMapping("/marca")
     public ResponseEntity<List<Veiculo>> veiculoMarca(@RequestParam String marca) {
 
-        List<Veiculo> veiculosEncontrados = new ArrayList<>();
+        List<Veiculo> veiculosEncontrados = veiculoRepository.findByMarca(marca);
 
-        for (Veiculo veiculo : bancoDados) {
-
-            if (Objects.equals(veiculo.getMarca(), marca)) {
-                veiculosEncontrados.add(veiculo);
-            }
-            if (veiculosEncontrados.isEmpty()) {
-                return ResponseEntity.notFound().build();}
-
+        if (veiculosEncontrados.isEmpty()) {
+            return ResponseEntity.notFound().build();
         }
 
         return ResponseEntity.ok(veiculosEncontrados);
@@ -78,17 +59,14 @@ public class VeiculoControler {
     @GetMapping("/ano")
     public ResponseEntity<List<Veiculo>> veiculoAno(@RequestParam Integer ano) {
 
-        List<Veiculo> veiculosEncontrados = new ArrayList<>();
+        List<Veiculo> veiculosEncontrados = veiculoRepository.findByAno(ano);
 
-        for (Veiculo veiculo : bancoDados) {
-
-            if (Objects.equals(veiculo.getAno(), ano)) {
-                veiculosEncontrados.add(veiculo);
-            }
         if (veiculosEncontrados.isEmpty()) {
             return ResponseEntity.notFound().build();
-        }}
-        return ResponseEntity.ok(veiculosEncontrados);}
+        }
+
+        return ResponseEntity.ok(veiculosEncontrados);
+    }
 
     @PostMapping("/gravar")
     public ResponseEntity<String> salvarVeiculo(
@@ -97,23 +75,22 @@ public class VeiculoControler {
         if (veiculo == null) {
             return ResponseEntity.notFound().build();
         } else {
-            bancoDados.add(veiculo);
+            veiculo.setId(null);
+            veiculo = veiculoRepository.save(veiculo);
             return ResponseEntity.ok("ID: " + veiculo.getId()+"\n"+"Nome: " + veiculo.getNome()+"\n"+"Modelo: " + veiculo.getModelo()+"\n"+"Marca: " + veiculo.getMarca()+"\n"+"Ano: " + veiculo.getAno()+"\n");
         }
     }
     @DeleteMapping("/deletar/{id}")
     public ResponseEntity<String> deletarVeiculo(@PathVariable Integer id) {
 
-        for (int i = 0; i < bancoDados.size(); i++) {
+        Veiculo veiculo = veiculoRepository.findById(id).orElse(null);
 
-            if (bancoDados.get(i).getId() == id) {
-
-                bancoDados.remove(i);
-
-                return ResponseEntity.ok("Veiculo " + id + " deletado");
-            }
+        if (veiculo == null) {
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.notFound().build();
+
+        veiculoRepository.delete(veiculo);
+        return ResponseEntity.ok("Veiculo " + id + " deletado");
     }
     @PutMapping("/editar/{id}")
     public ResponseEntity<Veiculo> editarVeiculo(
@@ -124,18 +101,17 @@ public class VeiculoControler {
             return ResponseEntity.noContent().build();
         }
 
-        for (Veiculo u : bancoDados) {
+        Veiculo veiculoEncontrado = veiculoRepository.findById(id).orElse(null);
 
-            if (u.getId() == id) {
-
-                u.setNome(veiculo.getNome());
-                u.setMarca(veiculo.getMarca());
-                u.setModelo(veiculo.getModelo());
-                u.setAno(veiculo.getAno());
-
-                return ResponseEntity.ok(u);
-            }
+        if (veiculoEncontrado == null) {
+            return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.notFound().build();
+
+        veiculoEncontrado.setNome(veiculo.getNome());
+        veiculoEncontrado.setMarca(veiculo.getMarca());
+        veiculoEncontrado.setModelo(veiculo.getModelo());
+        veiculoEncontrado.setAno(veiculo.getAno());
+
+        return ResponseEntity.ok(veiculoRepository.save(veiculoEncontrado));
     }
 }
