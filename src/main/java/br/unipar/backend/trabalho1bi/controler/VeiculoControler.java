@@ -115,7 +115,7 @@ public class VeiculoControler {
         }
         return ResponseEntity.notFound().build();
     }
-    @PutMapping("/editar/{id}") // editar
+    @PutMapping("/editar/{id}")
     public ResponseEntity<Veiculo> editarVeiculo(
             @PathVariable int id,
             @RequestBody(required = false) Veiculo veiculo) {
